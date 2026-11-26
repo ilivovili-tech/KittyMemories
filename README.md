@@ -24,7 +24,13 @@ xcodegen generate
 xcodebuild -project KittyMemories.xcodeproj -scheme KittyMemories -sdk iphonesimulator -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
-The current GitHub-hosted macOS runner reports Xcode 26.6 / iOS 26.5 SDK. It can catch many Swift errors, but it cannot certify a final iOS 27 SDK build. Do not lower the deployment target just to make the older runner green.
+The GitHub Actions workflow builds both the simulator target and an unsigned Release app for generic iPhoneOS. It packages the device app as `KittyMemories-unsigned.ipa` and the editable source project as `KittyMemories.zip`. The CI runner's installed Xcode/iOS SDK version is recorded in the workflow logs; a successful build does not replace installation testing on a physical iPhone running the target iOS version. Do not lower the deployment target just to make an older SDK green.
+
+## Install on your own iPhone
+
+The CI-generated IPA is intentionally **unsigned**. It cannot be installed directly until you sign it with your own Apple account/certificate. The simplest route is to open `KittyMemories.xcodeproj` on a Mac in Xcode, select the `KittyMemories` target → **Signing & Capabilities**, enable **Automatically manage signing**, choose your Apple development Team, and change `PRODUCT_BUNDLE_IDENTIFIER` to a unique identifier you control. Connect your iPhone, select it as the run destination, then Build/Run from Xcode. You can also sign the unsigned IPA with your preferred sideloading/signing tool after configuring your own certificate and provisioning profile.
+
+A free Apple account's personal provisioning profile may expire periodically; paid Apple Developer membership offers longer-lived provisioning and distribution options. No signing certificate, Team ID, or private key is stored in this repository or CI.
 
 ## Private storage
 Images are stored in Application Support/Photos and Application Support/Stickers. File sharing and opening-in-place are disabled.
@@ -33,4 +39,5 @@ Images are stored in Application Support/Photos and Application Support/Stickers
 - Download and visually curate the 16 user-provided WeChat article images, then package approved frame assets in Images.xcassets.
 - Add and test distinct built-in Hello Kitty frame styles for album photos.
 - Complete real-device testing on iOS 27, especially orientation, GIF playback, PhotosPicker imports, SwiftData persistence, gestures and share-sheet behavior.
+- Sign the unsigned IPA with the owner's Apple account and verify installation/launch on the target iPhone.
 - Review WeChat importer behavior against the actual articles; WeChat may block automated requests or return incomplete HTML.
