@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import ImageIO
 
 struct StickerLibraryView: View {
     @Environment(\.modelContext) private var context
@@ -103,10 +104,29 @@ private struct AnimatedStickerPreview: UIViewRepresentable {
     func makeUIView(context: Context) -> UIImageView {
         let view = UIImageView()
         view.contentMode = .scaleAspectFit
-        view.image = UIImage(contentsOfFile: url.path)
+        view.image = Self.loadImage(url)
         return view
     }
     func updateUIView(_ uiView: UIImageView, context: Context) {
-        uiView.image = UIImage(contentsOfFile: url.path)
+        uiView.image = Self.loadImage(url)
+    }
+    private static func loadImage(_ url: URL) -> UIImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            return UIImage(contentsOfFile: url.path)
+        }
+        let count = CGImageSourceGetCount(source)
+        guard count > 1 else { return UIImage(contentsOfFile: url.path) }
+        var frames: [UIImage] = []
+        var duration: TimeInterval = 0
+        for index in 0..<count {
+            guard let cgImage = CGImageSourceCreateImageAtIndex(source, index, nil) else { continue }
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+            let gif = properties?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
+            let delay = (gif?[kCGImagePropertyGIFUnclampedDelayTime] as? NSNumber)?.doubleValue
+                ?? (gif?[kCGImagePropertyGIFDelayTime] as? NSNumber)?.doubleValue ?? 0.1
+            duration += max(0.04, delay)
+            frames.append(UIImage(cgImage: cgImage))
+        }
+        return UIImage.animatedImage(with: frames, duration: duration)
     }
 }
