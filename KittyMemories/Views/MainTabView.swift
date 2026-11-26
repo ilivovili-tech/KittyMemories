@@ -56,7 +56,6 @@ struct MainTabView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .toolbar(.hidden, for: .navigationBar)
         }
         .controlSize(.small)
         .animation(.spring(response: 0.42, dampingFraction: 0.84), value: selection)
@@ -77,7 +76,7 @@ struct MainTabView: View {
                 if selection == index {
                     RoundedRectangle(cornerRadius: 14)
                         .fill(Color.pink.opacity(0.10))
-                        .glassEffect(.regular.tint(.pink.opacity(0.18)), in: .rect(cornerRadius: 14))
+                        .glassEffect(.regular.tint(.pink.opacity(0.18)), in: RoundedRectangle(cornerRadius: 14))
                         .glassEffectID("active-module-indicator", in: glassNamespace)
                 }
             }
