@@ -146,8 +146,17 @@ struct StickerEditorView: View {
                     placed.zIndex = (entry.stickers.map(\.zIndex).max() ?? 0) + 1
                 }
             }
-        } else {
-            EmptyView()
+        } else if placed.sticker == nil {
+            Text("素材已删除")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(.regularMaterial, in: Capsule())
+                .overlay(Capsule().stroke(.orange.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [4])))
+                .position(x: photoRect.minX + photoRect.width * placed.positionX,
+                          y: photoRect.minY + photoRect.height * placed.positionY)
+                .onTapGesture { selectedID = placed.id }
         }
     }
 
