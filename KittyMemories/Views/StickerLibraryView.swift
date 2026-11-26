@@ -69,6 +69,7 @@ struct StickerLibraryView: View {
                 }
             }
         }
+        .controlSize(.small)
         .navigationTitle("DIY 素材库")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
