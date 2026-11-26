@@ -11,6 +11,7 @@ struct AlbumHomeView: View {
     @State private var selectedYear: Int?
     @State private var selectedMonth: Int?
     @State private var selectedDay: Date?
+    @State private var importError: String?
     enum BrowseMode: String, CaseIterable { case book = "翻书", scroll = "滚动" }
     private var years: [Int] { Array(Set(entries.map { Calendar.current.component(.year, from: $0.customDate) })).sorted(by: >) }
     private var months: [Int] {
@@ -44,13 +45,38 @@ struct AlbumHomeView: View {
                     if entries.isEmpty { ContentUnavailableView("还没有照片", systemImage: "photo.on.rectangle.angled", description: Text("从本地选择照片，照片只会复制到 App 私有空间。")) }
                 }.navigationTitle("我的相册")
             }
-        }.onChange(of: selectedItem) { _, item in Task { await importPhoto(item) } }
+        }
+        .onChange(of: selectedItem) { _, item in Task { await importPhoto(item) } }
+        .alert("无法导入照片", isPresented: Binding(
+            get: { importError != nil },
+            set: { if !$0 { importError = nil } }
+        )) {
+            Button("好", role: .cancel) { importError = nil }
+        } message: {
+            Text(importError ?? "请稍后重试。")
+        }
     }
     @MainActor private func importPhoto(_ item: PhotosPickerItem?) async {
-        guard let item, let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data), let jpeg = image.jpegData(compressionQuality: 0.94) else { return }
-        do { let name = try LocalFileStore.save(jpeg, in: .photos); context.insert(PhotoEntry(photoFileName: name)) }
-        catch { print("Photo import failed: \(error)") }
-        selectedItem = nil
+        defer { selectedItem = nil }
+        guard let item else { return }
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data),
+                  let jpeg = image.jpegData(compressionQuality: 0.94) else {
+                importError = "无法读取所选照片，请换一张图片重试。"
+                return
+            }
+            let name = try LocalFileStore.save(jpeg, in: .photos)
+            do {
+                context.insert(PhotoEntry(photoFileName: name))
+                try context.save()
+            } catch {
+                LocalFileStore.delete(name, from: .photos)
+                throw error
+            }
+        } catch {
+            importError = error.localizedDescription
+        }
     }
 }
 
