@@ -10,6 +10,8 @@ struct StickerEditorView: View {
     @State private var magnification: CGFloat = 1
     @State private var rotation: Angle = .zero
     @State private var showingStickerPicker = false
+    @State private var shareImage: UIImage?
+    @State private var exportError: String?
 
     private var selectedSticker: PlacedSticker? {
         entry.stickers.first { $0.id == selectedID }
@@ -43,6 +45,20 @@ struct StickerEditorView: View {
                 selectedID = placed.id
             }
         }
+        .sheet(item: Binding(
+            get: { shareImage.map(ShareImageItem.init) },
+            set: { shareImage = $0?.image }
+        )) { item in
+            ActivityShareView(items: [item.image])
+        }
+        .alert("导出失败", isPresented: Binding(
+            get: { exportError != nil },
+            set: { if !$0 { exportError = nil } }
+        )) {
+            Button("好", role: .cancel) { exportError = nil }
+        } message: {
+            Text(exportError ?? "无法生成图片。")
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showingStickerPicker = true } label: { Label("添加贴纸", systemImage: "plus") }
@@ -53,7 +69,41 @@ struct StickerEditorView: View {
                     selectedSticker.zIndex = (entry.stickers.map(\.zIndex).max() ?? 0) + 1
                 }.disabled(selectedID == nil)
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { exportComposition() } label: {
+                    Label("分享", systemImage: "square.and.arrow.up")
+                }
+            }
         }
+    }
+
+    @MainActor private func exportComposition() {
+        guard let photoURL = LocalFileStore.url(entry.photoFileName, in: .photos),
+              let photo = UIImage(contentsOfFile: photoURL.path) else {
+            exportError = "找不到原始照片。"
+            return
+        }
+        let canvas = ZStack {
+            Image(uiImage: photo).resizable().frame(width: photo.size.width, height: photo.size.height)
+            ForEach(entry.stickers.sorted { $0.zIndex < $1.zIndex }) { placed in
+                if let sticker = placed.sticker,
+                   let url = LocalFileStore.url(sticker.imageFileName, in: .stickers),
+                   let image = UIImage(contentsOfFile: url.path) {
+                    Image(uiImage: image).resizable().scaledToFit()
+                        .frame(width: photo.size.width * 0.22 * placed.scale)
+                        .rotationEffect(.radians(placed.rotation))
+                        .position(x: photo.size.width * placed.positionX,
+                                  y: photo.size.height * placed.positionY)
+                }
+            }
+        }.frame(width: photo.size.width, height: photo.size.height)
+        let renderer = ImageRenderer(content: canvas)
+        renderer.scale = 1
+        guard let rendered = renderer.uiImage else {
+            exportError = "图片合成失败，请重试。"
+            return
+        }
+        shareImage = rendered
     }
 
     private func aspectFitRect(imageSize: CGSize, in canvas: CGSize) -> CGRect {
@@ -118,4 +168,17 @@ struct StickerEditorView: View {
         }
         return SimultaneousGesture(SimultaneousGesture(drag, magnify), rotate)
     }
+}
+
+private struct ShareImageItem: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
+private struct ActivityShareView: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
