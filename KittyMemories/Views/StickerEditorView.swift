@@ -9,6 +9,7 @@ struct StickerEditorView: View {
     @State private var dragOffset: CGSize = .zero
     @State private var magnification: CGFloat = 1
     @State private var rotation: Angle = .zero
+    @State private var showingStickerPicker = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -25,9 +26,18 @@ struct StickerEditorView: View {
             }.contentShape(Rectangle())
         }
         .navigationTitle("贴纸 DIY")
+        .sheet(isPresented: $showingStickerPicker) {
+            StickerPickerView { sticker in
+                let nextZ = (entry.stickers.map(\.zIndex).max() ?? -1) + 1
+                let placed = PlacedSticker(sticker: sticker, zIndex: nextZ, photoEntry: entry)
+                entry.stickers.append(placed)
+                context.insert(placed)
+                selectedID = placed.id
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink { StickerLibraryView() } label: { Label("素材库", systemImage: "plus") }
+                Button { showingStickerPicker = true } label: { Label("添加贴纸", systemImage: "plus") }
             }
         }
     }
