@@ -88,23 +88,23 @@ struct StickerLibraryView: View {
 
     @MainActor private func importClipboard(manual: Bool) async {
         guard !importing else { return }
-        guard let url = UIPasteboard.general.url, url.host?.contains("mp.weixin.qq.com") == true else {
+        guard let url = UIPasteboard.general.url, url.scheme?.lowercased() == "https" && url.host?.lowercased() == "mp.weixin.qq.com" else {
             if manual { statusMessage = "请先复制一条 mp.weixin.qq.com 公众号文章链接。"; showStatus = true }
             return
         }
         let key = url.absoluteString
         if !manual && (key == lastCheckedURL || UserDefaults.standard.string(forKey: "lastImportedWeChatURL") == key) { return }
-        lastCheckedURL = key
         importing = true
         defer { importing = false }
         do {
             let result = try await WeChatStickerImporter.shared.importArticle(url, into: context)
+            lastCheckedURL = key
             UserDefaults.standard.set(key, forKey: "lastImportedWeChatURL")
             statusMessage = "成功 \(result.success) 张，失败 \(result.failed) 张。"
         } catch {
             statusMessage = error.localizedDescription
         }
-        showStatus = true
+        if manual || statusMessage?.hasPrefix("成功") == true { showStatus = true }
     }
 
     @MainActor private func cutout(_ sticker: DIYSticker) async {
