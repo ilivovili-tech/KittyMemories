@@ -12,6 +12,8 @@ struct AlbumHomeView: View {
     @State private var selectedMonth: Int?
     @State private var selectedDay: Date?
     @State private var importError: String?
+    @State private var showingPhotoPicker = false
+    @State private var showingStickerLibrary = false
     enum BrowseMode: String, CaseIterable { case book = "翻书", scroll = "滚动" }
     private var years: [Int] { Array(Set(entries.map { Calendar.current.component(.year, from: $0.customDate) })).sorted(by: >) }
     private var months: [Int] {
@@ -27,7 +29,25 @@ struct AlbumHomeView: View {
         VStack(spacing: 12) {
             HStack {
                 Picker("浏览模式", selection: $modeRaw) { ForEach(BrowseMode.allCases, id: \.self) { Text($0.rawValue).tag($0.rawValue) } }.pickerStyle(.segmented)
-                PhotosPicker(selection: $selectedItem, matching: .images) { Image(systemName: "plus").font(.title3).padding(11).glassEffect(.regular, in: .circle) }
+                Menu {
+                    Button {
+                        showingPhotoPicker = true
+                    } label: {
+                        Label("从照片添加", systemImage: "photo")
+                    }
+                    Button {
+                        showingStickerLibrary = true
+                    } label: {
+                        Label("DIY 材料库", systemImage: "sparkles")
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 36, height: 36)
+                        .glassEffect(.regular, in: .circle)
+                        .contentShape(Circle())
+                }
+                .accessibilityLabel("添加相册内容")
             }.padding(.horizontal)
             if let day = selectedDay {
                 DayAlbumView(day: day, mode: BrowseMode(rawValue: modeRaw) ?? .book, entries: entries.filter { Calendar.current.isDate($0.customDate, inSameDayAs: day) }, onBack: { selectedDay = nil })
@@ -45,6 +65,10 @@ struct AlbumHomeView: View {
                     if entries.isEmpty { ContentUnavailableView("还没有照片", systemImage: "photo.on.rectangle.angled", description: Text("从本地选择照片，照片只会复制到 App 私有空间。")) }
                 }.navigationTitle("我的相册")
             }
+        }
+        .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedItem, matching: .images)
+        .sheet(isPresented: $showingStickerLibrary) {
+            NavigationStack { StickerLibraryView() }
         }
         .onChange(of: selectedItem) { _, item in Task { await importPhoto(item) } }
         .alert("无法导入照片", isPresented: Binding(
