@@ -28,6 +28,7 @@ targets:
       - package: SwiftSoup
         product: SwiftSoup
     info:
+      path: KittyMemories/Info.plist
       properties:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationLandscapeLeft
