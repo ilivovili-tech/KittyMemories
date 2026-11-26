@@ -8,6 +8,7 @@ Private, offline-first native SwiftUI app. Deployment target is intentionally se
 - Local PhotosPicker imports copy files into the app sandbox; no Photos-library writes.
 - Year → month → day album navigation; book/page and vertical browsing modes.
 - Shared Liquid Glass module switcher.
+- App is configured to launch and remain in landscape orientation (left/right).
 - WeChat article parser using a MicroMessenger user agent, mp.weixin.qq.com Referer, #js_content image extraction and per-image failure handling.
 - Clipboard import attempt when the sticker library opens or the app becomes active, plus a manual import button.
 - Imported sticker library, GIF frame preview, sticker picker and normalized-coordinate sticker placement editor.
