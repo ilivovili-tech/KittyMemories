@@ -11,6 +11,8 @@ struct StickerLibraryView: View {
     @State private var statusMessage: String?
     @State private var showStatus = false
     @State private var lastCheckedURL = ""
+    @State private var cutoutFailed = Set<UUID>()
+    @State private var cuttingOut = Set<UUID>()
 
     var body: some View {
         List {
@@ -43,9 +45,24 @@ struct StickerLibraryView: View {
                                     }
                                 }.frame(width: 64, height: 64)
                             }
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: 5) {
                                 Text(sticker.name)
                                 Text(sticker.createdAt.formatted()).font(.caption).foregroundStyle(.secondary)
+                                if cutoutFailed.contains(sticker.id) {
+                                    Text("未抠图").font(.caption2).foregroundStyle(.orange)
+                                }
+                                if !sticker.imageFileName.lowercased().hasSuffix(".gif") {
+                                    Button {
+                                        Task { await cutout(sticker) }
+                                    } label: {
+                                        if cuttingOut.contains(sticker.id) {
+                                            ProgressView()
+                                        } else {
+                                            Label("智能抠图", systemImage: "person.crop.rectangle")
+                                                .font(.caption)
+                                        }
+                                    }.disabled(cuttingOut.contains(sticker.id))
+                                }
                             }
                         }
                     }.onDelete(perform: deleteStickers)
@@ -88,6 +105,28 @@ struct StickerLibraryView: View {
             statusMessage = error.localizedDescription
         }
         showStatus = true
+    }
+
+    @MainActor private func cutout(_ sticker: DIYSticker) async {
+        guard let source = LocalFileStore.url(sticker.imageFileName, in: .stickers) else { return }
+        cuttingOut.insert(sticker.id)
+        defer { cuttingOut.remove(sticker.id) }
+        do {
+            let png = try await Task.detached(priority: .userInitiated) {
+                try StickerCutoutService.makeTransparentPNG(from: source)
+            }.value
+            let newName = try LocalFileStore.save(png, in: .stickers, fileExtension: "png")
+            let oldName = sticker.imageFileName
+            sticker.imageFileName = newName
+            sticker.name += " · 已抠图"
+            LocalFileStore.delete(oldName, from: .stickers)
+            cutoutFailed.remove(sticker.id)
+            try context.save()
+        } catch {
+            cutoutFailed.insert(sticker.id)
+            statusMessage = error.localizedDescription
+            showStatus = true
+        }
     }
 
     private func deleteStickers(at offsets: IndexSet) {
