@@ -7,7 +7,7 @@ struct AlbumHomeView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \PhotoEntry.customDate, order: .reverse) private var entries: [PhotoEntry]
     @State private var selectedItem: PhotosPickerItem?
-    @State private var mode: BrowseMode = .book
+    @AppStorage("albumBrowseMode") private var modeRaw = BrowseMode.book.rawValue
     @State private var selectedYear: Int?
     @State private var selectedMonth: Int?
     @State private var selectedDay: Date?
@@ -25,11 +25,11 @@ struct AlbumHomeView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Picker("浏览模式", selection: $mode) { ForEach(BrowseMode.allCases, id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented)
+                Picker("浏览模式", selection: $modeRaw) { ForEach(BrowseMode.allCases, id: \.self) { Text($0.rawValue).tag($0.rawValue) } }.pickerStyle(.segmented)
                 PhotosPicker(selection: $selectedItem, matching: .images) { Image(systemName: "plus").font(.title3).padding(11).glassEffect(.regular, in: .circle) }
             }.padding(.horizontal)
             if let day = selectedDay {
-                DayAlbumView(day: day, mode: mode, entries: entries.filter { Calendar.current.isDate($0.customDate, inSameDayAs: day) }, onBack: { selectedDay = nil })
+                DayAlbumView(day: day, mode: BrowseMode(rawValue: modeRaw) ?? .book, entries: entries.filter { Calendar.current.isDate($0.customDate, inSameDayAs: day) }, onBack: { selectedDay = nil })
             } else if let month = selectedMonth, let year = selectedYear {
                 List(days, id: \.self) { day in Button { selectedDay = day } label: { Label(day.formatted(date: .long, time: .omitted), systemImage: "calendar") } }
                     .navigationTitle("\(year)年 · \(month)月")
@@ -65,11 +65,88 @@ private struct DayAlbumView: View {
             if mode == .scroll {
                 ScrollView { LazyVStack(spacing: 22) { ForEach(entries) { PhotoPageView(entry: $0) } }.padding() }
             } else {
-                TabView { ForEach(entries) { PhotoPageView(entry: $0).padding() } }.tabViewStyle(.page(indexDisplayMode: .always))
+                PaperFlipAlbumView(entries: entries)
             }
         }
     }
 }
+private struct PaperFlipAlbumView: View {
+    let entries: [PhotoEntry]
+    @State private var page = 0
+    @State private var drag: CGFloat = 0
+    @State private var isFlipping = false
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(red: 0.94, green: 0.90, blue: 0.81))
+                    .shadow(color: .black.opacity(0.18), radius: 14, y: 7)
+                if entries.indices.contains(page) {
+                    PhotoPageView(entry: entries[page])
+                        .padding(8)
+                        .background(Color(red: 0.99, green: 0.97, blue: 0.91))
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                        .overlay(alignment: .leading) {
+                            Rectangle().fill(.black.opacity(0.08)).frame(width: 5).blur(radius: 2)
+                        }
+                        .rotation3DEffect(
+                            .degrees(Double(-drag / max(proxy.size.width, 1)) * 48),
+                            axis: (x: 0, y: 1, z: 0),
+                            anchor: drag < 0 ? .leading : .trailing,
+                            perspective: 0.55
+                        )
+                        .offset(x: drag * 0.12)
+                        .shadow(color: .black.opacity(abs(drag) / max(proxy.size.width, 1) * 0.22),
+                                radius: 12, x: drag * 0.04, y: 4)
+                }
+                VStack {
+                    Spacer()
+                    HStack {
+                        Button { flip(-1) } label: { Image(systemName: "chevron.left") }
+                            .disabled(page == 0 || isFlipping)
+                        Spacer()
+                        Text("\(entries.isEmpty ? 0 : page + 1) / \(entries.count)")
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        Spacer()
+                        Button { flip(1) } label: { Image(systemName: "chevron.right") }
+                            .disabled(page >= entries.count - 1 || isFlipping)
+                    }.buttonStyle(.plain).padding(.horizontal, 18).padding(.vertical, 12)
+                }
+            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 24)
+                .onChanged { value in
+                    guard !isFlipping else { return }
+                    drag = min(proxy.size.width * 0.75, max(-proxy.size.width * 0.75, value.translation.width))
+                }
+                .onEnded { value in
+                    let threshold = proxy.size.width * 0.18
+                    if value.translation.width < -threshold { flip(1) }
+                    else if value.translation.width > threshold { flip(-1) }
+                    else { withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) { drag = 0 } }
+                })
+        }
+    }
+
+    private func flip(_ direction: Int) {
+        let target = page + direction
+        guard entries.indices.contains(target), !isFlipping else { return }
+        isFlipping = true
+        withAnimation(.easeIn(duration: 0.16)) {
+            drag = direction > 0 ? -180 : 180
+        } completion: {
+            page = target
+            drag = direction > 0 ? 180 : -180
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                drag = 0
+            } completion: {
+                isFlipping = false
+            }
+        }
+    }
+}
+
 private struct PhotoPageView: View {
     @Bindable var entry: PhotoEntry
     var body: some View {
