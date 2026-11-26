@@ -9,11 +9,15 @@ struct MainTabView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
-                let railWidth = min(max(geometry.size.width * 0.13, 58), 76)
+                let railWidth = min(max(geometry.size.width * 0.18, 76), 88)
                 HStack(spacing: 0) {
                     VStack(spacing: 8) {
-                        moduleButton("相册", symbol: "book.closed.fill", index: 0)
-                        moduleButton("纪念日", symbol: "heart.fill", index: 1)
+                        GlassEffectContainer(spacing: 8) {
+                            VStack(spacing: 8) {
+                                moduleButton("相册", symbol: "book.closed.fill", index: 0)
+                                moduleButton("纪念日", symbol: "heart.fill", index: 1)
+                            }
+                        }
                         Spacer(minLength: 8)
                         Button {
                             preferredOrientation = preferredOrientation == "landscape" ? "portrait" : "landscape"
