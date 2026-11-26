@@ -117,11 +117,19 @@ struct StickerLibraryView: View {
             }.value
             let newName = try LocalFileStore.save(png, in: .stickers, fileExtension: "png")
             let oldName = sticker.imageFileName
+            let oldTitle = sticker.name
             sticker.imageFileName = newName
             sticker.name += " · 已抠图"
+            do {
+                try context.save()
+            } catch {
+                sticker.imageFileName = oldName
+                sticker.name = oldTitle
+                LocalFileStore.delete(newName, from: .stickers)
+                throw error
+            }
             LocalFileStore.delete(oldName, from: .stickers)
             cutoutFailed.remove(sticker.id)
-            try context.save()
         } catch {
             cutoutFailed.insert(sticker.id)
             statusMessage = error.localizedDescription
@@ -130,10 +138,19 @@ struct StickerLibraryView: View {
     }
 
     private func deleteStickers(at offsets: IndexSet) {
-        for index in offsets {
-            let sticker = stickers[index]
-            LocalFileStore.delete(sticker.imageFileName, from: .stickers)
+        let removed = offsets.map { stickers[$0] }
+        let fileNames = removed.map(\.imageFileName)
+        for sticker in removed {
             context.delete(sticker)
+        }
+        do {
+            try context.save()
+            for fileName in fileNames {
+                LocalFileStore.delete(fileName, from: .stickers)
+            }
+        } catch {
+            statusMessage = "删除素材失败：\\(error.localizedDescription)"
+            showStatus = true
         }
     }
 }
