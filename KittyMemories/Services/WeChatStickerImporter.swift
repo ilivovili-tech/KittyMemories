@@ -15,21 +15,26 @@ final class WeChatStickerImporter {
     private let referer = "https://mp.weixin.qq.com/"
 
     func importFromClipboard(into context: ModelContext) async throws -> StickerImportResult {
-        guard let url = UIPasteboard.general.url, url.host?.contains("mp.weixin.qq.com") == true else {
+        guard let url = UIPasteboard.general.url, isValidArticleURL(url) else {
             throw ImportError.invalidClipboard
         }
         return try await importArticle(url, into: context)
     }
 
     func importArticle(_ url: URL, into context: ModelContext) async throws -> StickerImportResult {
-        guard url.host?.contains("mp.weixin.qq.com") == true else { throw ImportError.invalidURL }
+        guard isValidArticleURL(url) else { throw ImportError.invalidURL }
+
         var request = URLRequest(url: url)
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(referer, forHTTPHeaderField: "Referer")
         request.timeoutInterval = 30
         let (html, response) = try await URLSession.shared.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200,
-              let htmlText = String(data: html, encoding: .utf8) else { throw ImportError.articleUnavailable }
+        guard let http = response as? HTTPURLResponse,
+              http.statusCode == 200,
+              let finalURL = response.url, isValidArticleURL(finalURL),
+              let htmlText = String(data: html, encoding: .utf8) else {
+            throw ImportError.articleUnavailable
+        }
 
         let document = try SwiftSoup.parse(htmlText)
         let images = try document.select("#js_content img")
@@ -37,9 +42,12 @@ final class WeChatStickerImporter {
         for image in images.array() {
             let raw = (try? image.attr("data-src")).flatMap { $0.isEmpty ? nil : $0 }
                 ?? (try? image.attr("src")) ?? ""
-            guard let candidate = URL(string: raw), candidate.host?.contains("mmbiz.qpic.cn") == true else { continue }
+            guard let candidate = URL(string: raw),
+                  candidate.scheme?.lowercased() == "https",
+                  candidate.host?.lowercased() == "mmbiz.qpic.cn" else { continue }
             if !links.contains(candidate) { links.append(candidate) }
         }
+        guard !links.isEmpty else { throw ImportError.noArticleImages }
 
         var success = 0
         var failed = 0
@@ -50,36 +58,57 @@ final class WeChatStickerImporter {
                 imageRequest.setValue(referer, forHTTPHeaderField: "Referer")
                 imageRequest.timeoutInterval = 25
                 let (data, imageResponse) = try await URLSession.shared.data(for: imageRequest)
-                guard (imageResponse as? HTTPURLResponse)?.statusCode == 200,
-                      let type = imageResponse.mimeType, type.hasPrefix("image/"),
-                      UIImage(data: data) != nil else { throw ImportError.invalidImage }
+                guard let imageHTTP = imageResponse as? HTTPURLResponse,
+                      imageHTTP.statusCode == 200,
+                      let type = imageResponse.mimeType?.lowercased(),
+                      type.hasPrefix("image/"),
+                      !data.isEmpty,
+                      UIImage(data: data) != nil else {
+                    throw ImportError.invalidImage
+                }
+
                 let ext: String
-                switch type.lowercased() {
+                switch type {
                 case "image/gif": ext = "gif"
                 case "image/png": ext = "png"
                 case "image/webp": ext = "webp"
+                case "image/heic": ext = "heic"
                 default: ext = "jpg"
                 }
                 let file = try LocalFileStore.save(data, in: .stickers, fileExtension: ext)
-                context.insert(DIYSticker(name: "微信素材 \(Date.now.formatted(date: .numeric, time: .shortened)) · \(index + 1)",
-                                          imageFileName: file, source: "clipboard"))
+                context.insert(DIYSticker(
+                    name: "微信素材 \(Date.now.formatted(date: .numeric, time: .shortened)) · \(index + 1)",
+                    imageFileName: file,
+                    source: "clipboard"
+                ))
                 success += 1
             } catch {
                 failed += 1
             }
         }
+
+        guard success > 0 else { throw ImportError.allImagesFailed(failed) }
         try context.save()
         return StickerImportResult(success: success, failed: failed)
     }
 
+    private func isValidArticleURL(_ url: URL) -> Bool {
+        url.scheme?.lowercased() == "https"
+            && url.host?.lowercased() == "mp.weixin.qq.com"
+    }
+
     enum ImportError: LocalizedError {
-        case invalidClipboard, invalidURL, articleUnavailable, invalidImage
+        case invalidClipboard, invalidURL, articleUnavailable, invalidImage, noArticleImages
+        case allImagesFailed(Int)
+
         var errorDescription: String? {
             switch self {
-            case .invalidClipboard: return "剪贴板中没有微信文章链接。"
-            case .invalidURL: return "仅支持 mp.weixin.qq.com 公众号文章链接。"
+            case .invalidClipboard: return "剪贴板中没有有效的微信文章链接。"
+            case .invalidURL: return "仅支持 HTTPS 的 mp.weixin.qq.com 公众号文章链接。"
             case .articleUnavailable: return "文章暂时无法读取，可能需要在微信中打开后重试。"
             case .invalidImage: return "图片格式无效。"
+            case .noArticleImages: return "文章正文中没有找到可导入的图片。"
+            case .allImagesFailed(let count): return "找到 \(count) 张图片，但全部下载失败，请稍后重试。"
             }
         }
     }
