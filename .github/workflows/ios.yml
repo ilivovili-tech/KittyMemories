@@ -39,17 +39,12 @@ jobs:
           mkdir -p dist
           zip -r dist/KittyMemories.zip KittyMemories KittyMemories.xcodeproj project.yml README.md tools .github \
             -x "*/.DS_Store" "*/__pycache__/*" "tools/wechat_downloads/*"
-      - name: Upload install package
+      - name: Upload release files
         uses: actions/upload-artifact@v4
         with:
-          name: KittyMemories-unsigned-IPA
-          path: dist/KittyMemories-unsigned.ipa
-          if-no-files-found: error
-          retention-days: 30
-      - name: Upload project ZIP
-        uses: actions/upload-artifact@v4
-        with:
-          name: KittyMemories-ZIP
-          path: dist/KittyMemories.zip
+          name: KittyMemories-Release
+          path: |
+            dist/KittyMemories-unsigned.ipa
+            dist/KittyMemories.zip
           if-no-files-found: error
           retention-days: 30
