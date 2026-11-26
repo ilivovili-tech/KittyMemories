@@ -35,6 +35,7 @@ struct StickerEditorView: View {
             .contentShape(Rectangle())
             .onTapGesture { selectedID = nil }
         }
+        .controlSize(.small)
         .navigationTitle("贴纸 DIY")
         .sheet(isPresented: $showingStickerPicker) {
             StickerPickerView { sticker in
