@@ -7,6 +7,7 @@ struct AnniversaryHomeView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \AnniversaryEntry.date) private var entries: [AnniversaryEntry]
     @State private var showingCreate = false
+    @State private var operationError: String?
 
     var body: some View {
         List {
@@ -27,15 +28,30 @@ struct AnniversaryHomeView: View {
             }
         }
         .sheet(isPresented: $showingCreate) { CreateAnniversaryView() }
+        .alert("操作未完成", isPresented: Binding(
+            get: { operationError != nil },
+            set: { if !$0 { operationError = nil } }
+        )) {
+            Button("好", role: .cancel) { operationError = nil }
+        } message: {
+            Text(operationError ?? "请稍后重试。")
+        }
     }
 
     private func deleteEntries(at offsets: IndexSet) {
-        for index in offsets {
-            let entry = entries[index]
-            for photo in entry.photos {
-                LocalFileStore.delete(photo.fileName, from: .photos)
-            }
+        let removed = offsets.map { entries[$0] }
+        let fileNames = removed.flatMap { $0.photos.map(\.fileName) }
+        for entry in removed {
             context.delete(entry)
+        }
+        do {
+            try context.save()
+            for fileName in fileNames {
+                LocalFileStore.delete(fileName, from: .photos)
+            }
+        } catch {
+            context.rollback()
+            operationError = "删除纪念日失败：\(error.localizedDescription)"
         }
     }
 }
@@ -99,9 +115,16 @@ private struct AnniversaryDetailView: View {
                             ContentUnavailableView("照片文件不存在", systemImage: "photo")
                         }
                         Button(role: .destructive) {
-                            LocalFileStore.delete(photo.fileName, from: .photos)
+                            let fileName = photo.fileName
                             entry.photos.removeAll { $0.id == photo.id }
                             context.delete(photo)
+                            do {
+                                try context.save()
+                                LocalFileStore.delete(fileName, from: .photos)
+                            } catch {
+                                context.rollback()
+                                importError = "删除照片失败：\(error.localizedDescription)"
+                            }
                         } label: {
                             Image(systemName: "trash.circle.fill")
                                 .font(.title2)
@@ -136,10 +159,15 @@ private struct AnniversaryDetailView: View {
                 throw PhotoImportError.invalidImage
             }
             let name = try LocalFileStore.save(jpeg, in: .photos)
-            let photo = AnniversaryPhoto(fileName: name, anniversary: entry)
-            entry.photos.append(photo)
-            context.insert(photo)
-            try context.save()
+            do {
+                let photo = AnniversaryPhoto(fileName: name, anniversary: entry)
+                entry.photos.append(photo)
+                context.insert(photo)
+                try context.save()
+            } catch {
+                LocalFileStore.delete(name, from: .photos)
+                throw error
+            }
         } catch {
             importError = error.localizedDescription
         }
