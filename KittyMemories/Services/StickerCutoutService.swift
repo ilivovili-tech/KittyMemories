@@ -21,11 +21,12 @@ enum StickerCutoutService {
             throw StickerCutoutError.cannotRender
         }
         let request = VNGenerateForegroundInstanceMaskRequest()
-        try VNImageRequestHandler(cgImage: image).perform([request])
+        let handler = VNImageRequestHandler(cgImage: image)
+        try handler.perform([request])
         guard let observation = request.results?.first else { throw StickerCutoutError.noForeground }
         let maskBuffer = try observation.generateScaledMaskForImage(
             forInstances: observation.allInstances,
-            from: VNImageRequestHandler(cgImage: image)
+            from: handler
         )
         let foreground = CIImage(cgImage: image)
         let mask = CIImage(cvPixelBuffer: maskBuffer)
