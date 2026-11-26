@@ -29,8 +29,14 @@ struct MainTabView: View {
         Button { withAnimation(.spring(response: 0.55, dampingFraction: 0.78)) { selection = index } } label: {
             Label(title, systemImage: symbol).font(.headline).frame(maxWidth: .infinity).padding(.vertical, 13)
                 .foregroundStyle(selection == index ? Color.primary : Color.secondary)
-                .glassEffect(selection == index ? .regular.tint(.pink.opacity(0.2)) : .clear, in: .capsule)
-                .glassEffectID("module-\(index)", in: glassNamespace)
+                .background {
+                    if selection == index {
+                        Capsule()
+                            .fill(.pink.opacity(0.10))
+                            .glassEffect(.regular.tint(.pink.opacity(0.18)), in: .capsule)
+                            .glassEffectID("active-module-indicator", in: glassNamespace)
+                    }
+                }
         }.buttonStyle(.plain)
     }
 }
