@@ -1,19 +1,20 @@
 # KittyMemories 🎀
 
-Private, offline-first native SwiftUI app. Deployment target is intentionally set to iOS 27.0.
+Private native SwiftUI app. Deployment target is intentionally set to iOS 27.0, with landscape-left and landscape-right orientations only.
 
-## Implemented foundation
+## Implemented
 - Independent Album and Anniversary SwiftData models.
 - Private Application Support storage for album photos, anniversary photos and imported stickers.
-- Local PhotosPicker imports copy files into the app sandbox; no Photos-library writes.
-- Year → month → day album navigation; book/page and vertical browsing modes.
-- Shared Liquid Glass module switcher.
-- App is configured to launch and remain in landscape orientation (left/right).
-- WeChat article parser using a MicroMessenger user agent, mp.weixin.qq.com Referer, #js_content image extraction and per-image failure handling.
-- Clipboard import attempt when the sticker library opens or the app becomes active, plus a manual import button.
-- Imported sticker library, GIF frame preview, sticker picker and normalized-coordinate sticker placement editor.
-- Optional Vision foreground-mask cutout; failed cutouts keep the source image and show “未抠图”.
-- Development-only downloader for the 16 user-provided WeChat articles.
+- PhotosPicker imports copy images into the app sandbox; the app never writes to the Photos library.
+- Year → month → day album navigation with book/page and vertical browsing modes; browse preference persists.
+- Paper-like 3D page-turn interaction and shared Liquid Glass module selection.
+- Per-photo date and thought text, plus normalized-coordinate sticker placement, drag, scale, rotate, z-order and delete controls.
+- On-demand ImageRenderer composition export and iOS share sheet.
+- Independent anniversary entries with photo add/delete and local-file cleanup when entries or photos are deleted.
+- WeChat article importer with strict HTTPS host validation, MicroMessenger user agent, Referer, #js_content extraction, image validation and partial-failure reporting.
+- Clipboard import attempt when the sticker library opens or the app becomes active, plus manual import.
+- Imported sticker library with GIF preview and optional Vision foreground-mask cutout; failed cutouts preserve the source image.
+- Private file sharing and opening-in-place disabled.
 
 ## Build
 Requires an Xcode release with the iOS 27 SDK and XcodeGen:
@@ -28,9 +29,8 @@ The current GitHub-hosted macOS runner reports Xcode 26.6 / iOS 26.5 SDK. It can
 ## Private storage
 Images are stored in Application Support/Photos and Application Support/Stickers. File sharing and opening-in-place are disabled.
 
-## Remaining milestones
-- Download and visually curate the 16 article images, then package approved frame assets in Images.xcassets.
-- Apply distinct bundled frame styles to album photos.
-- Finish custom paper-like page-turn animation and full Liquid Glass matched-geometry transitions.
-- Add ImageRenderer export/share, stronger editor selection controls, and thorough on-device testing.
-- Review importer behavior against actual WeChat articles; WeChat may block automated requests or return incomplete HTML.
+## Remaining work
+- Download and visually curate the 16 user-provided WeChat article images, then package approved frame assets in Images.xcassets.
+- Add and test distinct built-in Hello Kitty frame styles for album photos.
+- Complete real-device testing on iOS 27, especially orientation, GIF playback, PhotosPicker imports, SwiftData persistence, gestures and share-sheet behavior.
+- Review WeChat importer behavior against the actual articles; WeChat may block automated requests or return incomplete HTML.
