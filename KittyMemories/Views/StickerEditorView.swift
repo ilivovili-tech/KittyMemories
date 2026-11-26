@@ -10,7 +10,7 @@ struct StickerEditorView: View {
     @State private var magnification: CGFloat = 1
     @State private var rotation: Angle = .zero
     @State private var showingStickerPicker = false
-    @State private var shareImage: UIImage?
+    @State private var shareImage: ShareImageItem?
     @State private var exportError: String?
 
     private var selectedSticker: PlacedSticker? {
@@ -45,10 +45,7 @@ struct StickerEditorView: View {
                 selectedID = placed.id
             }
         }
-        .sheet(item: Binding(
-            get: { shareImage.map(ShareImageItem.init) },
-            set: { shareImage = $0?.image }
-        )) { item in
+        .sheet(item: $shareImage) { item in
             ActivityShareView(items: [item.image])
         }
         .alert("导出失败", isPresented: Binding(
@@ -103,7 +100,7 @@ struct StickerEditorView: View {
             exportError = "图片合成失败，请重试。"
             return
         }
-        shareImage = rendered
+        shareImage = ShareImageItem(image: rendered)
     }
 
     private func aspectFitRect(imageSize: CGSize, in canvas: CGSize) -> CGRect {
