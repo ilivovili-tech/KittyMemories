@@ -22,11 +22,30 @@ jobs:
         run: xcodegen generate
       - name: Build iOS Simulator
         run: xcodebuild -project KittyMemories.xcodeproj -scheme KittyMemories -sdk iphonesimulator -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+      - name: Build unsigned iPhone app
+        run: |
+          xcodebuild -project KittyMemories.xcodeproj -scheme KittyMemories -sdk iphoneos -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p build/Payload dist
+          cp -R build/DerivedData/Build/Products/Release-iphoneos/KittyMemories.app build/Payload/
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" build/Payload/KittyMemories.app/Info.plist
+          cd build
+          zip -qry ../dist/KittyMemories-unsigned.ipa Payload
+          cd ..
+          test -s dist/KittyMemories-unsigned.ipa
       - name: Package project ZIP
         run: |
           mkdir -p dist
           zip -r dist/KittyMemories.zip KittyMemories KittyMemories.xcodeproj project.yml README.md tools .github \
             -x "*/.DS_Store" "*/__pycache__/*" "tools/wechat_downloads/*"
+      - name: Upload install package
+        uses: actions/upload-artifact@v4
+        with:
+          name: KittyMemories-unsigned-IPA
+          path: dist/KittyMemories-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
       - name: Upload project ZIP
         uses: actions/upload-artifact@v4
         with:
