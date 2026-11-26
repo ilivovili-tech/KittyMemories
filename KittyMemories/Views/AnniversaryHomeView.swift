@@ -21,6 +21,7 @@ struct AnniversaryHomeView: View {
             }
             .onDelete(perform: deleteEntries)
         }
+        .controlSize(.small)
         .navigationTitle("纪念日")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
