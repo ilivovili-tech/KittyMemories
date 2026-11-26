@@ -38,14 +38,17 @@ enum StickerCutoutService {
         guard let result = context.createCGImage(output, from: foreground.extent) else {
             throw StickerCutoutError.cannotRender
         }
-        return UIImagePNGRepresentationCompat(result)
+        return try pngData(result)
     }
 
-    private static func UIImagePNGRepresentationCompat(_ image: CGImage) -> Data {
+    private static func pngData(_ image: CGImage) throws -> Data {
         let data = NSMutableData()
-        if let destination = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil) {
-            CGImageDestinationAddImage(destination, image, nil)
-            CGImageDestinationFinalize(destination)
+        guard let destination = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil) else {
+            throw StickerCutoutError.cannotRender
+        }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination), data.length > 0 else {
+            throw StickerCutoutError.cannotRender
         }
         return data as Data
     }
