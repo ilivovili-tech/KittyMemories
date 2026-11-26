@@ -1,13 +1,13 @@
 # KittyMemories 🎀
 
-Private native SwiftUI app. Deployment target is intentionally set to iOS 27.0, with landscape-left and landscape-right orientations only.
+Private native SwiftUI app. Deployment target is intentionally set to iOS 27.0, with portrait and landscape orientations. The left-side rail contains compact Album/Anniversary navigation and a portrait/landscape switch.
 
 ## Implemented
 - Independent Album and Anniversary SwiftData models.
 - Private Application Support storage for album photos, anniversary photos and imported stickers.
 - PhotosPicker imports copy images into the app sandbox; the app never writes to the Photos library.
-- Year → month → day album navigation with book/page and vertical browsing modes; browse preference persists.
-- Paper-like 3D page-turn interaction and shared Liquid Glass module selection.
+- Year → month → day album navigation with book/page and vertical browsing modes; browse preference persists. The add (+) menu offers both photo import and the DIY sticker library.
+- Paper-like 3D page-turn interaction, compact left-edge module navigation and shared Liquid Glass module selection.
 - Per-photo date and thought text, plus normalized-coordinate sticker placement, drag, scale, rotate, z-order and delete controls.
 - On-demand ImageRenderer composition export and iOS share sheet.
 - Independent anniversary entries with photo add/delete and local-file cleanup when entries or photos are deleted.
@@ -38,6 +38,6 @@ Images are stored in Application Support/Photos and Application Support/Stickers
 ## Remaining work
 - Download and visually curate the 16 user-provided WeChat article images, then package approved frame assets in Images.xcassets.
 - Add and test distinct built-in Hello Kitty frame styles for album photos.
-- Complete real-device testing on iOS 27, especially orientation, GIF playback, PhotosPicker imports, SwiftData persistence, gestures and share-sheet behavior.
+- Complete real-device testing on iOS 27, especially the portrait/landscape switch, GIF playback, PhotosPicker imports, SwiftData persistence, gestures and share-sheet behavior.
 - Sign the unsigned IPA with the owner's Apple account and verify installation/launch on the target iPhone.
 - Review WeChat importer behavior against the actual articles; WeChat may block automated requests or return incomplete HTML.
