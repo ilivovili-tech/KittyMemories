@@ -149,7 +149,7 @@ struct StickerLibraryView: View {
                 LocalFileStore.delete(fileName, from: .stickers)
             }
         } catch {
-            statusMessage = "删除素材失败：\\(error.localizedDescription)"
+            statusMessage = "删除素材失败：\(error.localizedDescription)"
             showStatus = true
         }
     }
