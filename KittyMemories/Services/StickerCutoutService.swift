@@ -1,6 +1,7 @@
 import Foundation
 import Vision
 import CoreImage
+import CoreVideo
 import ImageIO
 
 enum StickerCutoutError: LocalizedError {
@@ -29,7 +30,7 @@ enum StickerCutoutService {
         let foreground = CIImage(cgImage: image)
         let mask = CIImage(cvPixelBuffer: maskBuffer)
         let output = foreground.applyingFilter("CIBlendWithMask", parameters: [
-            kCIInputBackgroundImageKey: CIImage(color: .clear).cropped(to: foreground.extent),
+            kCIInputBackgroundImageKey: CIImage(color: CIColor(red: 0, green: 0, blue: 0, alpha: 0)).cropped(to: foreground.extent),
             kCIInputMaskImageKey: mask
         ])
         let context = CIContext()
